@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/) [![Flask](https://img.shields.io/badge/Flask-3.1-000000)](https://flask.palletsprojects.com/)
 
 <p align="center">
-  <img src="static/images/logo.png" alt="Cyprus Bus Tracker Logo" width="200">
+  <img src="static/images/logo.png" alt="Cyprus Bus Tracker Logo">
 </p>
 
 A real-time bus tracker for Cyprus, consuming GTFS-Realtime data and
