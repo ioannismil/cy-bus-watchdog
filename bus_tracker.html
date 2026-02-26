@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyprus Bus Tracker - Live</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --sidebar-width: 340px;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --text: #f1f5f9;
+            --text-dim: #94a3b8;
+            --primary: #38bdf8;
+            --green: #4ade80;
+            --amber: #fbbf24;
+            --red: #f87171;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background: var(--bg-dark);
+            color: var(--text);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(255,255,255,0.06);
+            z-index: 1000;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 18px 20px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-header h1 .live-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,222,128,0.5); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(74,222,128,0); }
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+            font-size: 0.78rem;
+            color: var(--text-dim);
+        }
+
+        .status-bar .stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-bar .stat strong {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        /* Controls */
+        .controls {
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .search-box {
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: var(--text);
+            font-size: 0.85rem;
+            outline: none;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+
+        .search-box:focus { border-color: var(--primary); }
+        .search-box::placeholder { color: var(--text-dim); }
+
+        .toggle-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .toggle-btn {
+            padding: 5px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: transparent;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .toggle-btn:hover { background: var(--bg-hover); color: var(--text); }
+        .toggle-btn.active { background: var(--primary); color: #0f172a; border-color: var(--primary); font-weight: 600; }
+
+        /* Region filter buttons */
+        .region-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .region-btn {
+            padding: 4px 8px;
+            border-radius: 5px;
+            border: none;
+            font-size: 0.7rem;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: inherit;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        .region-btn.active { opacity: 1; }
+
+        /* Bus list */
+        .bus-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 12px;
+        }
+
+        .bus-list::-webkit-scrollbar { width: 4px; }
+        .bus-list::-webkit-scrollbar-track { background: transparent; }
+        .bus-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        .bus-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.15s;
+            margin-bottom: 3px;
+        }
+
+        .bus-item:hover { background: var(--bg-hover); }
+        .bus-item.selected { background: rgba(56,189,248,0.12); outline: 1px solid rgba(56,189,248,0.3); }
+
+        .bus-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .bus-info { flex: 1; min-width: 0; }
+
+        .bus-info .bus-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bus-info .bus-route {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin-top: 1px;
+        }
+
+        .bus-speed {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--green);
+            white-space: nowrap;
+        }
+
+        .bus-speed.stopped { color: var(--text-dim); }
+        .bus-speed.fast { color: var(--amber); }
+
+        /* Refresh bar */
+        .refresh-bar {
+            padding: 10px 20px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            color: var(--text-dim);
+        }
+
+        .refresh-bar .countdown { font-weight: 600; color: var(--primary); }
+
+        .refresh-progress {
+            height: 2px;
+            background: rgba(255,255,255,0.06);
+            width: 100%;
+        }
+
+        .refresh-progress-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 1s linear;
+        }
+
+        /* Map */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map { width: 100%; height: 100%; }
+
+        /* Custom bus marker */
+        .bus-marker {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2.5px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 800;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+            transition: transform 0.8s ease;
+            position: relative;
+        }
+
+        .bus-marker::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid white;
+        }
+
+        .bus-marker.moving {
+            animation: markerGlow 2s infinite;
+        }
+
+        @keyframes markerGlow {
+            0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
+            50% { box-shadow: 0 2px 12px rgba(56,189,248,0.5); }
+        }
+
+        /* Bearing indicator */
+        .bearing-arrow {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-bottom: 8px solid var(--primary);
+        }
+
+        /* Popup styling */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-dark) !important;
+            color: var(--text) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+        }
+
+        .leaflet-popup-tip { background: var(--bg-dark) !important; }
+
+        .popup-content h3 {
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .popup-content .popup-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 4px 12px;
+            font-size: 0.82rem;
+        }
+
+        .popup-content .popup-grid .label { color: var(--text-dim); }
+        .popup-content .popup-grid .value { font-weight: 600; }
+
+        /* Map overlay info */
+        .map-overlay {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .overlay-card {
+            background: rgba(15,23,42,0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-size: 0.8rem;
+        }
+
+        /* Error banner */
+        .error-banner {
+            background: rgba(248,113,113,0.15);
+            border: 1px solid rgba(248,113,113,0.3);
+            color: var(--red);
+            padding: 10px 16px;
+            font-size: 0.82rem;
+            text-align: center;
+            display: none;
+        }
+
+        .error-banner.show { display: block; }
+
+        /* Loading spinner */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            gap: 10px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Stop markers */
+        .stop-marker {
+            width: 8px;
+            height: 8px;
+            background: rgba(148,163,184,0.6);
+            border: 1.5px solid rgba(255,255,255,0.8);
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 280px;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                z-index: 2000;
+            }
+            .sidebar.open { transform: translateX(0); }
+
+            .mobile-toggle {
+                display: flex !important;
+                position: fixed;
+                top: 12px;
+                left: 12px;
+                z-index: 1500;
+                width: 40px;
+                height: 40px;
+                background: var(--bg-dark);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 10px;
+                align-items: center;
+                justify-content: center;
+                color: var(--text);
+                font-size: 1.2rem;
+                cursor: pointer;
+            }
+        }
+
+        .mobile-toggle { display: none; }
+    </style>
+</head>
+<body>
+
+    <button class="mobile-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>
+                <span class="live-dot"></span>
+                Cyprus Bus Tracker
+            </h1>
+            <div class="status-bar">
+                <div class="stat"><span>&#x1F68C;</span> <strong id="busCount">0</strong> buses</div>
+                <div class="stat"><span>&#x1F4CD;</span> <strong id="routeCount">0</strong> routes</div>
+                <div class="stat"><span>&#x23F1;</span> <strong id="lastUpdate">--</strong></div>
+            </div>
+        </div>
+
+        <div class="error-banner" id="errorBanner"></div>
+
+        <div class="controls">
+            <input type="text" class="search-box" id="searchBox" placeholder="&#x1F50D; Search vehicle or route...">
+            <div class="toggle-row">
+                <button class="toggle-btn active" id="toggleStops" onclick="toggleStops()">&#x1F6CF; Stops</button>
+                <button class="toggle-btn active" id="toggleMoving" onclick="toggleMovingFilter()">&#x1F699; Moving</button>
+                <button class="toggle-btn active" id="toggleStopped" onclick="toggleStoppedFilter()">&#x1F17F; Stopped</button>
+            </div>
+            <div class="region-filters" id="regionFilters"></div>
+        </div>
+
+        <div class="bus-list" id="busList">
+            <div class="loading"><div class="spinner"></div> Loading buses...</div>
+        </div>
+
+        <div class="refresh-progress"><div class="refresh-progress-fill" id="refreshProgress"></div></div>
+        <div class="refresh-bar">
+            <span>Auto-refresh</span>
+            <span>Next in <span class="countdown" id="countdown">15</span>s</span>
+        </div>
+    </aside>
+
+    <div class="map-container">
+        <div id="map"></div>
+        <div class="map-overlay">
+            <div class="overlay-card" id="overlayInfo">
+                <strong>&#x1F30D; Cyprus Public Transit</strong><br>
+                <span style="color: var(--text-dim)">Real-time GTFS-RT data</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ============ CONFIGURATION ============
+    const REFRESH_INTERVAL = 13; // seconds
+    const API_URL = '/api/vehicles';
+    const STOPS_URL = '/api/stops';
+    const CYPRUS_CENTER = [35.0, 33.4];
+    const DEFAULT_ZOOM = 9;
+
+    // Region colors based on route prefix
+    const REGIONS = {
+        'Nicosia':   { prefixes: ['501', '502', '503', '504', '505', '405'], color: '#38bdf8', icon: 'N' },
+        'Limassol':  { prefixes: ['151', '152'], color: '#4ade80', icon: 'L' },
+        'Larnaca':   { prefixes: ['201', '202', '203', '204'], color: '#fbbf24', icon: 'R' },
+        'Paphos':    { prefixes: ['300', '301', '302', '303'], color: '#f87171', icon: 'P' },
+        'Famagusta': { prefixes: ['400', '401', '402', '403'], color: '#a78bfa', icon: 'F' },
+        'Intercity': { prefixes: ['150', '155'], color: '#fb923c', icon: 'I' },
+    };
+
+    function getRegion(routeId) {
+        if (!routeId) return { name: 'Unknown', color: '#64748b', icon: '?' };
+        for (const [name, cfg] of Object.entries(REGIONS)) {
+            if (cfg.prefixes.some(p => routeId.startsWith(p))) {
+                return { name, color: cfg.color, icon: cfg.icon };
+            }
+        }
+        // Fallback heuristics
+        if (routeId.startsWith('5') && routeId.length <= 8) return { name: 'Nicosia', color: REGIONS.Nicosia.color, icon: 'N' };
+        if (routeId.startsWith('2')) return { name: 'Larnaca', color: REGIONS.Larnaca.color, icon: 'R' };
+        if (routeId.startsWith('3')) return { name: 'Paphos', color: REGIONS.Paphos.color, icon: 'P' };
+        if (routeId.startsWith('4')) return { name: 'Famagusta', color: REGIONS.Famagusta.color, icon: 'F' };
+        if (routeId.startsWith('15')) return { name: 'Limassol', color: REGIONS.Limassol.color, icon: 'L' };
+        return { name: 'Other', color: '#64748b', icon: '?' };
+    }
+
+    // ============ STATE ============
+    let map, busMarkers = {}, stopMarkers = [], stopsLayer = null;
+    let allBuses = [];
+    let showStops = true, showMoving = true, showStopped = true;
+    let activeRegions = new Set(Object.keys(REGIONS).concat(['Other']));
+    let selectedBusId = null;
+    let countdown = REFRESH_INTERVAL;
+
+    // ============ MAP INIT ============
+    map = L.map('map', {
+        center: CYPRUS_CENTER,
+        zoom: DEFAULT_ZOOM,
+        zoomControl: false,
+    });
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19,
+    }).addTo(map);
+
+    // ============ BUS MARKER CREATION ============
+    function createBusIcon(vehicle) {
+        const region = getRegion(vehicle.route_id);
+        const isMoving = vehicle.speed > 1;
+        const rotation = vehicle.bearing || 0;
+
+        return L.divIcon({
+            className: '',
+            html: `<div class="bus-marker ${isMoving ? 'moving' : ''}" style="background:${region.color}; transform: rotate(${rotation}deg);">
+                ${region.icon}
+            </div>`,
+            iconSize: [28, 33],
+            iconAnchor: [14, 33],
+            popupAnchor: [0, -35],
+        });
+    }
+
+    function createBusPopup(v) {
+        const region = getRegion(v.route_id);
+        const time = v.timestamp ? new Date(v.timestamp * 1000).toLocaleTimeString('el-GR') : '--';
+        const speed = v.speed > 0 ? `${v.speed} km/h` : 'Stopped';
+        const bearing = v.bearing > 0 ? `${v.bearing}°` : '--';
+
+        return `<div class="popup-content">
+            <h3><span style="color:${region.color}">&#x1F68C;</span> ${v.label}</h3>
+            <div class="popup-grid">
+                <span class="label">Region</span><span class="value" style="color:${region.color}">${region.name}</span>
+                <span class="label">Route</span><span class="value">${v.route_id}</span>
+                <span class="label">Speed</span><span class="value">${speed}</span>
+                <span class="label">Bearing</span><span class="value">${bearing}</span>
+                <span class="label">Updated</span><span class="value">${time}</span>
+                <span class="label">Coords</span><span class="value">${v.lat.toFixed(4)}, ${v.lon.toFixed(4)}</span>
+            </div>
+        </div>`;
+    }
+
+    // ============ UPDATE BUSES ============
+    function updateBuses(vehicles) {
+        allBuses = vehicles;
+        const currentIds = new Set(vehicles.map(v => v.id));
+
+        // Remove markers for buses no longer present
+        Object.keys(busMarkers).forEach(id => {
+            if (!currentIds.has(id)) {
+                map.removeLayer(busMarkers[id]);
+                delete busMarkers[id];
+            }
+        });
+
+        // Update or create markers
+        vehicles.forEach(v => {
+            const visible = shouldShowBus(v);
+
+            if (busMarkers[v.id]) {
+                const marker = busMarkers[v.id];
+                if (visible) {
+                    marker.setLatLng([v.lat, v.lon]);
+                    marker.setIcon(createBusIcon(v));
+                    marker.setPopupContent(createBusPopup(v));
+                    if (!map.hasLayer(marker)) marker.addTo(map);
+                } else {
+                    if (map.hasLayer(marker)) map.removeLayer(marker);
+                }
+            } else {
+                if (visible) {
+                    const marker = L.marker([v.lat, v.lon], { icon: createBusIcon(v) });
+                    marker.bindPopup(createBusPopup(v), { maxWidth: 280 });
+                    marker.on('click', () => selectBus(v.id));
+                    marker.addTo(map);
+                    busMarkers[v.id] = marker;
+                }
+            }
+        });
+
+        updateBusList();
+        updateStats();
+    }
+
+    function shouldShowBus(v) {
+        const region = getRegion(v.route_id);
+        if (!activeRegions.has(region.name)) return false;
+        if (!showMoving && v.speed > 1) return false;
+        if (!showStopped && v.speed <= 1) return false;
+
+        const search = document.getElementById('searchBox').value.toLowerCase();
+        if (search) {
+            const match = (v.label || '').toLowerCase().includes(search) ||
+                          (v.route_id || '').toLowerCase().includes(search) ||
+                          region.name.toLowerCase().includes(search);
+            if (!match) return false;
+        }
+        return true;
+    }
+
+    // ============ BUS LIST ============
+    function updateBusList() {
+        const list = document.getElementById('busList');
+        const filtered = allBuses.filter(shouldShowBus);
+
+        if (filtered.length === 0) {
+            list.innerHTML = `<div class="loading" style="color: var(--text-dim); font-size: 0.85rem;">No buses match your filters</div>`;
+            return;
+        }
+
+        // Sort: moving first, then by label
+        filtered.sort((a, b) => {
+            if ((a.speed > 1) !== (b.speed > 1)) return b.speed > 1 ? 1 : -1;
+            return (a.label || '').localeCompare(b.label || '');
+        });
+
+        list.innerHTML = filtered.map(v => {
+            const region = getRegion(v.route_id);
+            const speedClass = v.speed <= 1 ? 'stopped' : v.speed > 50 ? 'fast' : '';
+            const speedText = v.speed > 1 ? `${v.speed} km/h` : 'Stopped';
+            const selected = v.id === selectedBusId ? 'selected' : '';
+
+            return `<div class="bus-item ${selected}" onclick="focusBus('${v.id}')" data-id="${v.id}">
+                <div class="bus-icon" style="background:${region.color}20; color:${region.color};">&#x1F68C;</div>
+                <div class="bus-info">
+                    <div class="bus-label">${v.label || v.id}</div>
+                    <div class="bus-route">${region.name} &bull; Route ${v.route_id}</div>
+                </div>
+                <div class="bus-speed ${speedClass}">${speedText}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function updateStats() {
+        const visible = allBuses.filter(shouldShowBus);
+        const routes = new Set(visible.map(v => v.route_id));
+        document.getElementById('busCount').textContent = visible.length;
+        document.getElementById('routeCount').textContent = routes.size;
+    }
+
+    // ============ INTERACTIONS ============
+    function focusBus(id) {
+        selectedBusId = id;
+        const v = allBuses.find(b => b.id === id);
+        if (v && busMarkers[id]) {
+            map.flyTo([v.lat, v.lon], 15, { duration: 0.8 });
+            busMarkers[id].openPopup();
+        }
+        updateBusList();
+        // Close mobile sidebar
+        document.querySelector('.sidebar').classList.remove('open');
+    }
+
+    function selectBus(id) {
+        selectedBusId = id;
+        updateBusList();
+        const item = document.querySelector(`.bus-item[data-id="${id}"]`);
+        if (item) item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // ============ STOPS ============
+    async function loadStops() {
+        try {
+            const resp = await fetch(STOPS_URL);
+            const stops = await resp.json();
+
+            stopsLayer = L.layerGroup();
+            stops.forEach(s => {
+                const marker = L.circleMarker([s.lat, s.lon], {
+                    radius: 3,
+                    fillColor: '#94a3b8',
+                    fillOpacity: 0.5,
+                    color: 'rgba(255,255,255,0.6)',
+                    weight: 1,
+                });
+                marker.bindTooltip(`<strong>${s.name_el || s.name_en}</strong><br><small>${s.code}</small>`, {
+                    direction: 'top',
+                    offset: [0, -4],
+                });
+                stopsLayer.addLayer(marker);
+            });
+
+            stopsLayer.addTo(map);
+            console.log(`Loaded ${stops.length} stops`);
+        } catch (e) {
+            console.warn('Could not load stops:', e);
+        }
+    }
+
+    // ============ FILTERS ============
+    function toggleStops() {
+        showStops = !showStops;
+        document.getElementById('toggleStops').classList.toggle('active', showStops);
+        if (stopsLayer) {
+            if (showStops) stopsLayer.addTo(map);
+            else map.removeLayer(stopsLayer);
+        }
+    }
+
+    function toggleMovingFilter() {
+        showMoving = !showMoving;
+        document.getElementById('toggleMoving').classList.toggle('active', showMoving);
+        refreshFilters();
+    }
+
+    function toggleStoppedFilter() {
+        showStopped = !showStopped;
+        document.getElementById('toggleStopped').classList.toggle('active', showStopped);
+        refreshFilters();
+    }
+
+    function refreshFilters() {
+        updateBuses(allBuses);
+    }
+
+    // Region filter buttons
+    function buildRegionFilters() {
+        const container = document.getElementById('regionFilters');
+        const allRegions = [...Object.keys(REGIONS), 'Other'];
+
+        container.innerHTML = allRegions.map(name => {
+            const color = REGIONS[name]?.color || '#64748b';
+            const active = activeRegions.has(name) ? 'active' : '';
+            return `<button class="region-btn ${active}" style="background:${color}; color:white;"
+                        onclick="toggleRegion('${name}', this)">${name}</button>`;
+        }).join('');
+    }
+
+    function toggleRegion(name, btn) {
+        if (activeRegions.has(name)) {
+            activeRegions.delete(name);
+            btn.classList.remove('active');
+        } else {
+            activeRegions.add(name);
+            btn.classList.add('active');
+        }
+        refreshFilters();
+    }
+
+    // Search
+    document.getElementById('searchBox').addEventListener('input', refreshFilters);
+
+    // ============ DATA FETCHING ============
+    async function fetchData() {
+        try {
+            const resp = await fetch(API_URL);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+
+            hideError();
+
+            const time = data.timestamp ? new Date(data.timestamp * 1000).toLocaleTimeString('el-GR') : '--';
+            document.getElementById('lastUpdate').textContent = time;
+
+            updateBuses(data.vehicles || []);
+        } catch (e) {
+            showError(`Connection error: ${e.message}`);
+        }
+    }
+
+    function showError(msg) {
+        const banner = document.getElementById('errorBanner');
+        banner.textContent = msg;
+        banner.classList.add('show');
+    }
+
+    function hideError() {
+        document.getElementById('errorBanner').classList.remove('show');
+    }
+
+    // ============ REFRESH LOOP ============
+    function startRefreshLoop() {
+        countdown = REFRESH_INTERVAL;
+        updateCountdown();
+
+        setInterval(() => {
+            countdown--;
+            if (countdown <= 0) {
+                countdown = REFRESH_INTERVAL;
+                fetchData();
+            }
+            updateCountdown();
+        }, 1000);
+    }
+
+    function updateCountdown() {
+        document.getElementById('countdown').textContent = countdown;
+        const pct = ((REFRESH_INTERVAL - countdown) / REFRESH_INTERVAL) * 100;
+        document.getElementById('refreshProgress').style.width = pct + '%';
+    }
+
+    // ============ INIT ============
+    buildRegionFilters();
+    fetchData();
+    loadStops();
+    startRefreshLoop();
+    </script>
+</body>
+</html>
