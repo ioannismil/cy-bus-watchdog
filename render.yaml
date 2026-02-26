@@ -7,3 +7,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
+      - key: GTFS_RT_URL
+        value: "http://20.19.98.194:8328/Api/api/gtfs-realtime"

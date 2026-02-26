@@ -1,57 +1,83 @@
 # Cyprus Real-Time Bus Tracker
 
-A minimal server and frontend for displaying live bus locations in Cyprus using the
-GTFS-Realtime feed.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/) [![Flask](https://img.shields.io/badge/Flask-3.1-000000)](https://flask.palletsprojects.com/)
 
-This repository contains:
+<p align="center">
+  <img src="static/images/logo.png" alt="Cyprus Bus Tracker Logo" width="200">
+</p>
 
-- `app.py` – Flask-based API server (production target via `gunicorn`).
-- `bus_tracker_server.py` – lightweight http.server implementation (alternate entrypoint).
-- `bus_tracker.html` – single-page frontend consuming the API.
-- `stops.csv` – static list of stops used by the app.
+A real-time bus tracker for Cyprus, consuming GTFS-Realtime data and
+displaying live vehicle positions on an interactive map.
 
----
+## Project Structure
 
-## Versions & dependencies
-
-| Component | Version | Notes |
-|-----------|---------|-------|
-| Python    | 3.11+  | Development/test environment |
-| Flask     | 2.2+   | Web framework used in `app.py` |
-| gtfs-realtime-bindings | 0.0.5+ | Protobuf bindings for GTFS-RT |
-| protobuf  | 4.x    | Required by the bindings |
-
-(install with `pip install -r requirements.txt`)
+```
+app.py              Flask routes (entry point)
+config.py           Configuration (env vars with defaults)
+services.py         GTFS-RT fetching, stop loading, caching
+static/
+  bus_tracker.html  Single-page app (Leaflet map)
+data/
+  stops.csv         ~7 000 bus stops (semicolon-delimited)
+```
 
 ---
 
-## Getting started
+## Getting Started
 
-### Local
+### Local development
 
 ```bash
-python -m venv .venv          # create virtualenv
-.\.venv\Scripts\activate     # Windows
+python -m venv .venv
+source .venv/bin/activate      # Linux / macOS
+# .venv\Scripts\activate       # Windows
 pip install -r requirements.txt
-python app.py                  # or `python bus_tracker_server.py`
+python app.py
 ```
 
-Browse `http://localhost:8080` to view the tracker.
+Open http://localhost:8080 in your browser.
 
-### Production
-
-Use Gunicorn to run the Flask app (the `Dockerfile` is configured accordingly):
+### Docker
 
 ```bash
-gunicorn app:app --bind 0.0.0.0:8080
+docker build -t cy-bus-watchdog .
+docker run -p 8080:8080 cy-bus-watchdog
 ```
+
+### Production (Gunicorn)
+
+```bash
+gunicorn app:app --bind 0.0.0.0:8080 --workers 2
+```
+
+---
+
+## Configuration
+
+All settings can be overridden via environment variables (see `.env.example`):
+
+| Variable      | Default                                          | Description                      |
+| ------------- | ------------------------------------------------ | -------------------------------- |
+| `PORT`        | `8080`                                           | Server port                      |
+| `GTFS_RT_URL` | `http://20.19.98.194:8328/Api/api/gtfs-realtime` | GTFS-RT protobuf feed URL        |
+| `STOPS_FILE`  | `data/stops.csv`                                 | Path to stops CSV file           |
+| `CACHE_TTL`   | `10`                                             | Vehicle cache duration (seconds) |
+
+---
+
+## Dependencies
+
+| Package                | Version | Purpose                   |
+| ---------------------- | ------- | ------------------------- |
+| Flask                  | 3.1.0   | Web framework             |
+| gunicorn               | 23.0.0  | Production WSGI server    |
+| gtfs-realtime-bindings | 2.0.0   | GTFS-RT protobuf bindings |
+| protobuf               | 4.25+   | Protocol Buffers runtime  |
+
+Install with `pip install -r requirements.txt`.
 
 ---
 
 ## License
 
-This project is licensed under the MIT License – see [LICENSE](./LICENSE).
-
----
-
-![Live buses](./bus_tracker.html)
+MIT -- see [LICENSE](./LICENSE).
