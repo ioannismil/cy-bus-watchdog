@@ -3,17 +3,20 @@ services.py - GTFS-RT data fetching and stop loading.
 """
 
 import csv
+import json
+import os
 import time
 import threading
 import urllib.request
 
 from google.transit import gtfs_realtime_pb2
 
-from config import GTFS_RT_URL, STOPS_FILE, CACHE_TTL
+from config import GTFS_RT_URL, STOPS_FILE, CACHE_TTL, BASE_DIR
 
 _cache_lock = threading.Lock()
 _cache = {"data": None, "timestamp": 0}
 _stops = None
+_gtfs_stops = None
 
 
 def fetch_vehicles():
@@ -110,3 +113,20 @@ def load_stops():
 
     _stops = stops
     return stops
+
+
+def load_gtfs_stops():
+    """Load GTFS static stops (stop_id-keyed). Cached after first load."""
+    global _gtfs_stops
+    if _gtfs_stops is not None:
+        return _gtfs_stops
+
+    path = os.path.join(BASE_DIR, "data", "gtfs_stops.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            _gtfs_stops = json.load(f)
+    except FileNotFoundError:
+        print(f"Warning: {path} not found. GTFS stops endpoint will return empty.")
+        _gtfs_stops = []
+
+    return _gtfs_stops

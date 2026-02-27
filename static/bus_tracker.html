@@ -386,6 +386,84 @@
 
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* Stop popup */
+        .stop-popup-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        .stop-popup-code {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            background: var(--bg-hover);
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .stop-arrivals-label {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .stop-arrivals-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .stop-arrival-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+        }
+
+        .stop-route-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .stop-vehicle {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+        }
+
+        .stop-eta {
+            font-weight: 700;
+            color: var(--green);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .stop-eta.at-stop {
+            color: var(--primary);
+        }
+
+        .stop-no-arrivals {
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            font-style: italic;
+            padding: 4px 0;
+        }
+
         /* Stop markers */
         .stop-marker {
             width: 8px;
@@ -399,6 +477,7 @@
         /* Mobile */
         .mobile-toggle { display: none; }
         .sidebar-backdrop { display: none; }
+        .sidebar-close { display: none; }
 
         @media (max-width: 768px) {
             body { flex-direction: column; }
@@ -413,9 +492,27 @@
                 transition: transform 0.3s ease;
                 z-index: 2000;
                 padding-top: env(safe-area-inset-top, 0);
-                padding-bottom: env(safe-area-inset-bottom, 0);
+                overflow: hidden;
             }
             .sidebar.open { transform: translateX(0); }
+
+            .sidebar-close {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-left: auto;
+                width: 32px;
+                height: 32px;
+                border: none;
+                background: var(--bg-hover);
+                color: var(--text);
+                border-radius: 8px;
+                font-size: 1.3rem;
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+                flex-shrink: 0;
+            }
+            .sidebar-close:active { background: var(--bg-card); }
 
             .sidebar-backdrop {
                 display: none;
@@ -484,9 +581,14 @@
             .popup-content .popup-grid { font-size: 0.78rem; gap: 3px 8px; }
             .popup-content h3 { font-size: 0.88rem; }
 
+            .refresh-progress {
+                flex-shrink: 0;
+            }
+
             .refresh-bar {
                 padding: 10px 16px;
                 padding-bottom: calc(10px + env(safe-area-inset-bottom, 0));
+                flex-shrink: 0;
             }
 
             /* Leaflet zoom controls safe area */
@@ -518,6 +620,7 @@
             <h1>
                 <span class="live-dot"></span>
                 Cyprus Bus Tracker
+                <button class="sidebar-close" onclick="closeSidebar()">&times;</button>
             </h1>
             <div class="status-bar">
                 <div class="stat"><span>&#x1F68C;</span> <strong id="busCount">0</strong> buses</div>
@@ -552,10 +655,6 @@
     <div class="map-container">
         <div id="map"></div>
         <div class="map-overlay">
-            <div class="overlay-card" id="overlayInfo">
-                <strong>&#x1F30D; Cyprus Public Transit</strong><br>
-                <span style="color: var(--text-dim)">Real-time GTFS-RT data</span>
-            </div>
         </div>
     </div>
 
@@ -574,9 +673,10 @@
     }
 
     // ============ CONFIGURATION ============
-    const REFRESH_INTERVAL = 13; // seconds
+    const REFRESH_INTERVAL = 15; // seconds
     const API_URL = '/api/vehicles';
     const STOPS_URL = '/api/stops';
+    const GTFS_STOPS_URL = '/api/gtfs-stops';
     const CYPRUS_CENTER = [35.0, 33.4];
     const DEFAULT_ZOOM = 9;
 
@@ -609,9 +709,16 @@
     // ============ STATE ============
     let map, busMarkers = {}, stopMarkers = [], stopsLayer = null;
     let allBuses = [];
+    let allTripUpdates = [];
+    let allStopsMap = {};
+    let gtfsStopsMap = {};     // GTFS stop_id -> {lat, lon, name} for route drawing
+    let stopCodeToGtfsId = {}; // CSV stop_code -> GTFS stop_id (reverse lookup)
+    let routeStopsIndex = {};  // route_id -> Set<stop_id> built from all trip_updates
     let showStops = true, showMoving = true, showStopped = true;
     let activeRegions = new Set(Object.keys(REGIONS).concat(['Other']));
     let selectedBusId = null;
+    let routeLayer = null;       // L.layerGroup for the active bus route polyline
+    let activeRouteBusId = null; // which bus's route is currently drawn
     let countdown = REFRESH_INTERVAL;
 
     // ============ MAP INIT ============
@@ -628,6 +735,17 @@
         subdomains: 'abcd',
         maxZoom: 19,
     }).addTo(map);
+
+    // Clear route line when clicking on the map background (not a bus)
+    let _busClicked = false;
+    map.on('click', () => {
+        if (_busClicked) { _busClicked = false; return; }
+        if (activeRouteBusId) {
+            clearBusRoute();
+            selectedBusId = null;
+            updateBusList();
+        }
+    });
 
     // ============ BUS MARKER CREATION ============
     function createBusIcon(vehicle) {
@@ -696,12 +814,24 @@
                 if (visible) {
                     const marker = L.marker([v.lat, v.lon], { icon: createBusIcon(v) });
                     marker.bindPopup(createBusPopup(v), { maxWidth: 280 });
-                    marker.on('click', () => selectBus(v.id));
+                    marker.on('click', () => { _busClicked = true; selectBus(v.id); });
                     marker.addTo(map);
                     busMarkers[v.id] = marker;
                 }
             }
         });
+
+        // Refresh route line if one is active
+        if (activeRouteBusId) {
+            if (currentIds.has(activeRouteBusId)) {
+                // Bus still exists — redraw with updated trip data
+                const prevId = activeRouteBusId;
+                clearBusRoute();
+                showBusRoute(prevId);
+            } else {
+                clearBusRoute();
+            }
+        }
 
         updateBusList();
         updateStats();
@@ -771,15 +901,411 @@
             map.flyTo([v.lat, v.lon], 15, { duration: 0.8 });
             busMarkers[id].openPopup();
         }
+        showBusRoute(id);
         updateBusList();
         closeSidebar();
     }
 
     function selectBus(id) {
         selectedBusId = id;
+        showBusRoute(id);
         updateBusList();
         const item = document.querySelector(`.bus-item[data-id="${id}"]`);
         if (item) item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // ============ BUS ROUTE DISPLAY ============
+    // Decode Google-style encoded polyline (used by OSRM)
+    function decodePolyline(encoded) {
+        const points = [];
+        let idx = 0, lat = 0, lng = 0;
+        while (idx < encoded.length) {
+            let b, shift = 0, result = 0;
+            do { b = encoded.charCodeAt(idx++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+            lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+            shift = 0; result = 0;
+            do { b = encoded.charCodeAt(idx++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+            lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+            points.push([lat / 1e5, lng / 1e5]);
+        }
+        return points;
+    }
+
+    // Cache OSRM results so re-drawing on refresh doesn't re-fetch
+    const routeCache = {};
+
+    function clearBusRoute() {
+        if (routeLayer) {
+            map.removeLayer(routeLayer);
+            routeLayer = null;
+        }
+        activeRouteBusId = null;
+    }
+
+    function showBusRoute(busId) {
+        // Toggle off if clicking the same bus
+        if (activeRouteBusId === busId) {
+            clearBusRoute();
+            return;
+        }
+        clearBusRoute();
+
+        const bus = allBuses.find(b => b.id === busId);
+        if (!bus) return;
+
+        // Find the trip's stop sequence
+        let tripStops = null;
+        let cacheKey = null;
+
+        // 1) Try exact trip_id match
+        const tu = allTripUpdates.find(t => t.trip_id === bus.trip_id);
+        if (tu && tu.stops && tu.stops.length > 0) {
+            tripStops = tu.stops;
+            cacheKey = tu.trip_id;
+        }
+
+        // 2) Fallback: any trip_update on the same route_id
+        if (!tripStops && bus.route_id) {
+            const fallback = allTripUpdates.find(
+                t => t.route_id === bus.route_id && t.stops && t.stops.length > 0
+            );
+            if (fallback) {
+                tripStops = fallback.stops;
+                cacheKey = fallback.trip_id;
+            }
+        }
+
+        if (!tripStops || tripStops.length < 2) return;
+
+        // Map stop_ids to coordinates (try GTFS stops first, fall back to CSV stops)
+        const coords = [];
+        const stopPoints = [];
+        for (const s of tripStops) {
+            const sp = gtfsStopsMap[s.stop_id] || allStopsMap[s.stop_id];
+            if (!sp) continue;
+            coords.push([sp.lat, sp.lon]);
+            stopPoints.push(sp);
+        }
+        if (coords.length < 2) return;
+
+        const region = getRegion(bus.route_id || '');
+        const color = region.color;
+        activeRouteBusId = busId;
+
+        // Draw the route (from cache or OSRM)
+        if (cacheKey && routeCache[cacheKey]) {
+            drawRoute(routeCache[cacheKey], stopPoints, color);
+        } else {
+            // Show straight-line immediately while OSRM loads
+            drawRoute(coords, stopPoints, color);
+            fetchOSRMRoute(coords, cacheKey, stopPoints, color);
+        }
+    }
+
+    function fetchOSRMRoute(coords, cacheKey, stopPoints, color) {
+        // OSRM expects lon,lat format (not lat,lon)
+        const waypoints = coords.map(c => `${c[1]},${c[0]}`).join(';');
+        const url = `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=polyline`;
+
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                if (data.code !== 'Ok' || !data.routes || !data.routes[0]) return;
+                const roadCoords = decodePolyline(data.routes[0].geometry);
+                if (cacheKey) routeCache[cacheKey] = roadCoords;
+                // Only redraw if this bus is still the active one
+                if (activeRouteBusId && allBuses.find(b => b.id === activeRouteBusId)) {
+                    drawRoute(roadCoords, stopPoints, color);
+                }
+            })
+            .catch(() => { /* keep straight-line fallback */ });
+    }
+
+    function drawRoute(routeCoords, stopPoints, color) {
+        if (routeLayer) map.removeLayer(routeLayer);
+        routeLayer = L.layerGroup();
+
+        // Dark outline for contrast on the dark map
+        routeLayer.addLayer(L.polyline(routeCoords, {
+            color: '#000',
+            weight: 7,
+            opacity: 0.5,
+            lineCap: 'round',
+            lineJoin: 'round',
+            interactive: false,
+        }));
+
+        // Bright colored route line on top
+        routeLayer.addLayer(L.polyline(routeCoords, {
+            color: color,
+            weight: 5,
+            opacity: 0.9,
+            lineCap: 'round',
+            lineJoin: 'round',
+            interactive: false,
+        }));
+
+        // Stop dots along the route
+        for (const sp of stopPoints) {
+            routeLayer.addLayer(L.circleMarker([sp.lat, sp.lon], {
+                radius: 5,
+                fillColor: color,
+                fillOpacity: 1,
+                color: '#fff',
+                weight: 2,
+                interactive: false,
+            }));
+        }
+
+        routeLayer.addTo(map);
+    }
+
+    // ============ STOP ARRIVALS ============
+    function haversineKm(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // Convert a CSV stop code to the GTFS stop_id used in trip_updates
+    function toGtfsStopId(csvCode) {
+        return stopCodeToGtfsId[csvCode] || csvCode;
+    }
+
+    // Look up stop coordinates by GTFS stop_id (with CSV fallback)
+    function getStopCoords(gtfsStopId) {
+        return gtfsStopsMap[gtfsStopId] || allStopsMap[gtfsStopId];
+    }
+
+    function getScheduledArrivals(stopCode) {
+        const gtfsId = toGtfsStopId(stopCode);
+        const now = Math.floor(Date.now() / 1000);
+        const arrivals = [];
+        for (const tu of allTripUpdates) {
+            for (const s of tu.stops) {
+                if (s.stop_id === gtfsId) {
+                    const time = s.arrival || s.departure;
+                    if (time && time > now) {
+                        arrivals.push({
+                            route_id: tu.route_id,
+                            vehicle: tu.vehicle,
+                            eta_min: Math.round((time - now) / 60),
+                            source: 'scheduled',
+                        });
+                    }
+                    break;
+                }
+            }
+        }
+        arrivals.sort((a, b) => a.eta_min - b.eta_min);
+        return arrivals.slice(0, 5);
+    }
+
+    function bearingBetween(lat1, lon1, lat2, lon2) {
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const lat1r = lat1 * Math.PI / 180;
+        const lat2r = lat2 * Math.PI / 180;
+        const y = Math.sin(dLon) * Math.cos(lat2r);
+        const x = Math.cos(lat1r) * Math.sin(lat2r) -
+                  Math.sin(lat1r) * Math.cos(lat2r) * Math.cos(dLon);
+        return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    }
+
+    // Build a global index: route_id -> Set of all stop_ids that route serves
+    // This aggregates stops from ALL trip_updates for a given route, giving us
+    // a much more complete picture than checking individual trip_updates.
+    function buildRouteStopsIndex() {
+        routeStopsIndex = {};
+        for (const tu of allTripUpdates) {
+            if (!tu.route_id || !tu.stops) continue;
+            if (!routeStopsIndex[tu.route_id]) {
+                routeStopsIndex[tu.route_id] = new Set();
+            }
+            for (const s of tu.stops) {
+                routeStopsIndex[tu.route_id].add(s.stop_id);
+            }
+        }
+    }
+
+    function getNearbyBuses(stop) {
+        const MAX_RADIUS_KM = 8;
+        const AT_STOP_KM = 0.25;       // within 250m = "at the stop"
+        const CLOSE_KM = 0.5;          // within 500m = skip bearing check
+        const DWELL_PER_STOP_MIN = 0.5; // 30s dwell per intermediate stop
+        const nearby = [];
+
+        // Build trip_id -> trip_update lookup
+        const tripMap = {};
+        for (const tu of allTripUpdates) {
+            if (tu.trip_id) tripMap[tu.trip_id] = tu;
+        }
+
+        // Convert the CSV stop code to GTFS stop_id for matching against trip_updates
+        const gtfsId = toGtfsStopId(stop.code);
+
+        // Check if a bus's route is known to serve this stop using the global index
+        function routeServesStop(routeId) {
+            const stops = routeStopsIndex[routeId];
+            return stops ? stops.has(gtfsId) : false;
+        }
+
+        for (const bus of allBuses) {
+            const dist = haversineKm(bus.lat, bus.lon, stop.lat, stop.lon);
+            if (dist > MAX_RADIUS_KM) continue;
+
+            const isAtStop = dist < AT_STOP_KM;
+            const isClose = dist < CLOSE_KM;
+
+            // Stopped buses: only include if they're at the stop
+            if (bus.speed <= 1 && !isAtStop) continue;
+
+            // Route filter: skip buses whose route doesn't serve this stop
+            // (unless physically at the stop). Uses the global route-to-stops index
+            // which aggregates ALL trip_updates for each route.
+            if (!isAtStop && bus.route_id && !routeServesStop(bus.route_id)) {
+                continue;
+            }
+
+            // Direction check: only for moving buses that aren't very close
+            if (bus.speed > 1 && bus.bearing > 0 && !isClose) {
+                const headingToStop = bearingBetween(bus.lat, bus.lon, stop.lat, stop.lon);
+                const diff = Math.abs(((bus.bearing - headingToStop + 540) % 360) - 180);
+                if (diff > 90) continue;
+            }
+
+            let stopsAway = null;
+            let routeDist = null;
+            const tu = tripMap[bus.trip_id];
+
+            if (tu && tu.stops.length > 0) {
+                // We have trip data — use stop sequence (GTFS stop_ids)
+                const targetIdx = tu.stops.findIndex(s => s.stop_id === gtfsId);
+                if (targetIdx < 0 && !isAtStop) continue; // Trip doesn't serve this stop
+
+                if (targetIdx >= 0) {
+                    // Find which stop the bus is nearest to in the sequence
+                    let busStopIdx = 0;
+                    let minDist = Infinity;
+                    for (let i = 0; i < tu.stops.length; i++) {
+                        const sp = getStopCoords(tu.stops[i].stop_id);
+                        if (!sp) continue;
+                        const d = haversineKm(bus.lat, bus.lon, sp.lat, sp.lon);
+                        if (d < minDist) { minDist = d; busStopIdx = i; }
+                    }
+
+                    // Bus already passed the target stop (but allow if at stop)
+                    if (busStopIdx > targetIdx && !isAtStop) continue;
+
+                    stopsAway = Math.max(0, targetIdx - busStopIdx);
+
+                    // Sum distances along the stop sequence for a better ETA
+                    if (stopsAway > 0) {
+                        const firstStop = getStopCoords(tu.stops[busStopIdx]?.stop_id);
+                        let seqDist = firstStop
+                            ? haversineKm(bus.lat, bus.lon, firstStop.lat, firstStop.lon) : 0;
+                        for (let i = busStopIdx; i < targetIdx; i++) {
+                            const s1 = getStopCoords(tu.stops[i].stop_id);
+                            const s2 = getStopCoords(tu.stops[i + 1].stop_id);
+                            if (s1 && s2) seqDist += haversineKm(s1.lat, s1.lon, s2.lat, s2.lon);
+                        }
+                        routeDist = seqDist;
+                    }
+                }
+            }
+
+            // ETA calculation
+            let eta_min;
+            if (isAtStop) {
+                eta_min = 0; // bus is here
+            } else if (bus.speed <= 1) {
+                continue; // stopped but not at this stop (already filtered above, safety net)
+            } else {
+                const travelDist = routeDist !== null ? routeDist : dist * 1.3;
+                eta_min = Math.round((travelDist / bus.speed) * 60);
+
+                // Add dwell time for intermediate stops
+                if (stopsAway !== null && stopsAway > 1) {
+                    eta_min += Math.round((stopsAway - 1) * DWELL_PER_STOP_MIN);
+                }
+            }
+
+            nearby.push({
+                route_id: bus.route_id,
+                vehicle: bus.label || bus.id,
+                dist_km: dist,
+                eta_min,
+                stops_away: stopsAway,
+                at_stop: isAtStop,
+                source: 'proximity',
+            });
+        }
+
+        nearby.sort((a, b) => a.eta_min - b.eta_min);
+        return nearby.slice(0, 8);
+    }
+
+    function formatEtaMin(min, atStop) {
+        if (atStop) return 'Now';
+        if (min < 1) return '<1 min';
+        if (min < 60) return `~${min} min`;
+        const h = Math.floor(min / 60);
+        const m = min % 60;
+        return `~${h}h ${m}m`;
+    }
+
+    function createStopPopup(stop) {
+        const name = stop.name_el || stop.name_en || stop.code;
+
+        // Try scheduled data first, fall back to proximity
+        let arrivals = getScheduledArrivals(stop.code);
+        let isEstimate = false;
+        if (arrivals.length === 0) {
+            arrivals = getNearbyBuses(stop);
+            isEstimate = true;
+        }
+
+        let arrivalsHtml;
+        if (arrivals.length === 0) {
+            arrivalsHtml = '<div class="stop-no-arrivals">No nearby buses found</div>';
+        } else {
+            arrivalsHtml = arrivals.map(a => {
+                const region = getRegion(a.route_id);
+                const eta = formatEtaMin(a.eta_min, a.at_stop);
+                let detail;
+                if (a.source === 'proximity') {
+                    if (a.at_stop) {
+                        detail = 'At this stop';
+                    } else if (a.stops_away !== null) {
+                        detail = `${a.stops_away} stop${a.stops_away !== 1 ? 's' : ''} away`;
+                    } else {
+                        detail = `${a.dist_km.toFixed(1)} km away`;
+                    }
+                } else {
+                    detail = a.vehicle || '--';
+                }
+                const etaClass = a.at_stop ? 'stop-eta at-stop' : 'stop-eta';
+                return `<div class="stop-arrival-row">
+                    <span class="stop-route-badge" style="background:${region.color}">${a.route_id}</span>
+                    <span class="stop-vehicle">${detail}</span>
+                    <span class="${etaClass}">${eta}</span>
+                </div>`;
+            }).join('');
+        }
+
+        const label = isEstimate ? 'Nearby buses (estimated)' : 'Upcoming arrivals';
+
+        return `<div class="stop-popup">
+            <div class="stop-popup-header">
+                <strong>${name}</strong>
+                <span class="stop-popup-code">${stop.code}</span>
+            </div>
+            <div class="stop-arrivals-label">${label}</div>
+            <div class="stop-arrivals-list">${arrivalsHtml}</div>
+        </div>`;
     }
 
     // ============ STOPS ============
@@ -787,6 +1313,8 @@
         try {
             const resp = await fetch(STOPS_URL);
             const stops = await resp.json();
+
+            stops.forEach(s => { allStopsMap[s.code] = s; });
 
             stopsLayer = L.layerGroup();
             stops.forEach(s => {
@@ -800,6 +1328,10 @@
                 marker.bindTooltip(`<strong>${s.name_el || s.name_en}</strong><br><small>${s.code}</small>`, {
                     direction: 'top',
                     offset: [0, -4],
+                });
+                marker.bindPopup('', { maxWidth: 260, minWidth: 180 });
+                marker.on('click', () => {
+                    marker.setPopupContent(createStopPopup(s));
                 });
                 stopsLayer.addLayer(marker);
             });
@@ -881,6 +1413,8 @@
             const time = data.timestamp ? new Date(data.timestamp * 1000).toLocaleTimeString('el-GR') : '--';
             document.getElementById('lastUpdate').textContent = time;
 
+            allTripUpdates = data.trip_updates || [];
+            buildRouteStopsIndex();
             updateBuses(data.vehicles || []);
         } catch (e) {
             showError(`Connection error: ${e.message}`);
@@ -919,9 +1453,21 @@
     }
 
     // ============ INIT ============
+    async function loadGtfsStops() {
+        try {
+            const resp = await fetch(GTFS_STOPS_URL);
+            const stops = await resp.json();
+            stops.forEach(s => {
+                gtfsStopsMap[s.stop_id] = { lat: s.lat, lon: s.lon, name: s.name };
+                if (s.stop_code) stopCodeToGtfsId[s.stop_code] = s.stop_id;
+            });
+        } catch (e) { console.warn('Failed to load GTFS stops:', e); }
+    }
+
     buildRegionFilters();
     fetchData();
     loadStops();
+    loadGtfsStops();
     startRefreshLoop();
     </script>
 </body>

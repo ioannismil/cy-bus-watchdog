@@ -10,7 +10,7 @@ import os
 from flask import Flask, jsonify, send_from_directory
 
 from config import PORT
-from services import fetch_vehicles, load_stops
+from services import fetch_vehicles, load_stops, load_gtfs_stops
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 
@@ -28,6 +28,11 @@ def api_vehicles():
 @app.route("/api/stops")
 def api_stops():
     return jsonify(load_stops())
+
+
+@app.route("/api/gtfs-stops")
+def api_gtfs_stops():
+    return jsonify(load_gtfs_stops())
 
 
 if __name__ == "__main__":
