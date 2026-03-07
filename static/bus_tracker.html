@@ -6,183 +6,85 @@
     <title>Cyprus Bus Tracker - Live</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --sidebar-width: 340px;
-            --bg-dark: #0f172a;
-            --bg-card: #1e293b;
-            --bg-hover: #334155;
+            --sidebar-width: 360px;
+            --bg-dark: #0a0f1a;
+            --bg-card: #131a2b;
+            --bg-elevated: #1a2236;
+            --bg-hover: #1f2b42;
+            --bg-input: #111827;
+            --border: rgba(255,255,255,0.07);
+            --border-light: rgba(255,255,255,0.12);
             --text: #f1f5f9;
-            --text-dim: #94a3b8;
+            --text-secondary: #8b95a8;
+            --text-dim: #5a6478;
             --primary: #38bdf8;
-            --green: #4ade80;
+            --primary-glow: rgba(56,189,248,0.15);
+            --green: #34d399;
             --amber: #fbbf24;
             --red: #f87171;
             --purple: #a78bfa;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.5);
+            --transition: 200ms ease-out;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', -apple-system, sans-serif;
+            font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif;
             display: flex;
             height: 100vh;
+            height: 100dvh;
             overflow: hidden;
             background: var(--bg-dark);
             color: var(--text);
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Sidebar */
+        /* ============ SIDEBAR ============ */
         .sidebar {
             width: var(--sidebar-width);
             background: var(--bg-dark);
             display: flex;
             flex-direction: column;
-            border-right: 1px solid rgba(255,255,255,0.06);
+            border-right: 1px solid var(--border);
             z-index: 1000;
             flex-shrink: 0;
         }
 
         .sidebar-header {
-            padding: 18px 20px 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid var(--border);
         }
 
-        .sidebar-header h1 {
-            font-size: 1.2rem;
-            font-weight: 700;
+        .sidebar-title-row {
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+            margin-bottom: 14px;
         }
 
-        .sidebar-header h1 .live-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--green);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74,222,128,0.5); }
-            50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(74,222,128,0); }
-        }
-
-        .status-bar {
-            display: flex;
-            gap: 12px;
-            margin-top: 10px;
-            font-size: 0.78rem;
-            color: var(--text-dim);
-        }
-
-        .status-bar .stat {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .status-bar .stat strong {
-            color: var(--primary);
-            font-weight: 700;
-        }
-
-        /* Controls */
-        .controls {
-            padding: 12px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .search-box {
-            background: var(--bg-card);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            padding: 8px 12px;
-            color: var(--text);
-            font-size: 0.85rem;
-            outline: none;
-            width: 100%;
-            transition: border-color 0.2s;
-        }
-
-        .search-box:focus { border-color: var(--primary); }
-        .search-box::placeholder { color: var(--text-dim); }
-
-        .toggle-row {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .toggle-btn {
-            padding: 5px 10px;
-            border-radius: 6px;
-            border: 1px solid rgba(255,255,255,0.12);
-            background: transparent;
-            color: var(--text-dim);
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-        }
-
-        .toggle-btn:hover { background: var(--bg-hover); color: var(--text); }
-        .toggle-btn.active { background: var(--primary); color: #0f172a; border-color: var(--primary); font-weight: 600; }
-
-        /* Region filter buttons */
-        .region-filters {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-        }
-
-        .region-btn {
-            padding: 4px 8px;
-            border-radius: 5px;
-            border: none;
-            font-size: 0.7rem;
-            cursor: pointer;
-            font-weight: 600;
-            font-family: inherit;
-            opacity: 0.5;
-            transition: opacity 0.2s;
-        }
-
-        .region-btn.active { opacity: 1; }
-
-        /* Bus list */
-        .bus-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px 12px;
-        }
-
-        .bus-list::-webkit-scrollbar { width: 4px; }
-        .bus-list::-webkit-scrollbar-track { background: transparent; }
-        .bus-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
-
-        .bus-item {
+        .sidebar-brand {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 10px 12px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background 0.15s;
-            margin-bottom: 3px;
         }
 
-        .bus-item:hover { background: var(--bg-hover); }
-        .bus-item.selected { background: rgba(56,189,248,0.12); outline: 1px solid rgba(56,189,248,0.3); }
-
-        .bus-icon {
+        .brand-icon {
             width: 36px;
             height: 36px;
-            border-radius: 8px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--primary), #818cf8);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -190,269 +92,488 @@
             flex-shrink: 0;
         }
 
-        .bus-info { flex: 1; min-width: 0; }
+        .brand-text h1 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            line-height: 1.2;
+        }
 
-        .bus-info .bus-label {
-            font-size: 0.85rem;
+        .brand-text .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.65rem;
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--green);
+            margin-top: 2px;
+        }
+
+        .live-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52,211,153,0.5); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(52,211,153,0); }
+        }
+
+        .sidebar-close {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition);
+            line-height: 1;
+        }
+        .sidebar-close:hover { background: var(--bg-hover); color: var(--text); }
+
+        .stats-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .stat-card {
+            flex: 1;
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            padding: 10px 12px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .stat-card .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        /* ============ ERROR BANNER ============ */
+        .error-banner {
+            display: none;
+            padding: 10px 16px;
+            background: rgba(248,113,113,0.1);
+            border-bottom: 1px solid rgba(248,113,113,0.2);
+            color: var(--red);
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .error-banner.show { display: block; }
+
+        /* ============ CONTROLS ============ */
+        .controls {
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-dim);
+            pointer-events: none;
+            width: 16px;
+            height: 16px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px 14px 10px 38px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text);
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            transition: all var(--transition);
+        }
+        .search-box::placeholder { color: var(--text-dim); }
+        .search-box:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .toggle-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 7px 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        .toggle-btn:hover { background: var(--bg-hover); color: var(--text-secondary); }
+        .toggle-btn.active {
+            background: var(--bg-elevated);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .toggle-btn .icon {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+
+        .region-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .region-btn {
+            padding: 5px 10px;
+            border-radius: 100px;
+            border: none;
+            font-size: 0.7rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all var(--transition);
+            opacity: 0.35;
+            filter: saturate(0.5);
+        }
+        .region-btn.active {
+            opacity: 1;
+            filter: saturate(1);
+        }
+        .region-btn:hover { opacity: 0.85; }
+
+        /* ============ BUS LIST ============ */
+        .bus-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .bus-list::-webkit-scrollbar { width: 4px; }
+        .bus-list::-webkit-scrollbar-track { background: transparent; }
+        .bus-list::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 4px; }
+
+        .bus-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition);
+            border: 1px solid transparent;
+        }
+        .bus-item:hover {
+            background: var(--bg-card);
+            border-color: var(--border);
+        }
+        .bus-item.selected {
+            background: var(--primary-glow);
+            border-color: rgba(56,189,248,0.25);
+        }
+
+        .bus-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .bus-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .bus-label {
+            font-weight: 600;
+            font-size: 0.85rem;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .bus-info .bus-route {
+        .bus-route {
             font-size: 0.72rem;
-            color: var(--text-dim);
+            color: var(--text-secondary);
             margin-top: 1px;
         }
 
         .bus-speed {
-            font-size: 0.78rem;
+            font-size: 0.75rem;
             font-weight: 600;
             color: var(--green);
             white-space: nowrap;
+            padding: 3px 8px;
+            border-radius: 100px;
+            background: rgba(52,211,153,0.1);
         }
-
-        .bus-speed.stopped { color: var(--text-dim); }
-        .bus-speed.fast { color: var(--amber); }
-
-        /* Refresh bar */
-        .refresh-bar {
-            padding: 10px 20px;
-            border-top: 1px solid rgba(255,255,255,0.06);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 0.78rem;
+        .bus-speed.stopped {
             color: var(--text-dim);
+            background: rgba(90,100,120,0.15);
+        }
+        .bus-speed.fast {
+            color: var(--amber);
+            background: rgba(251,191,36,0.1);
         }
 
-        .refresh-bar .countdown { font-weight: 600; color: var(--primary); }
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            gap: 12px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid var(--bg-hover);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ============ REFRESH BAR ============ */
+        .refresh-section {
+            border-top: 1px solid var(--border);
+        }
 
         .refresh-progress {
             height: 2px;
-            background: rgba(255,255,255,0.06);
-            width: 100%;
+            background: var(--bg-card);
         }
 
         .refresh-progress-fill {
             height: 100%;
-            background: var(--primary);
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary), #818cf8);
             transition: width 1s linear;
+            border-radius: 0 2px 2px 0;
         }
 
-        /* Map */
+        .refresh-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 16px;
+            font-size: 0.72rem;
+            color: var(--text-dim);
+        }
+
+        .countdown {
+            font-weight: 700;
+            color: var(--primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ============ MAP ============ */
         .map-container {
             flex: 1;
             position: relative;
         }
 
-        #map { width: 100%; height: 100%; }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
 
-        /* Custom bus marker */
+        /* ============ BUS MARKERS ============ */
         .bus-marker {
             width: 28px;
             height: 28px;
-            border-radius: 50%;
-            border: 2.5px solid white;
+            border-radius: 50% 50% 50% 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
-            font-weight: 800;
-            color: white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-            transition: transform 0.8s ease;
-            position: relative;
-        }
-
-        .bus-marker::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-top: 5px solid white;
+            font-weight: 700;
+            font-size: 0.75rem;
+            color: #fff;
+            border: 2px solid rgba(255,255,255,0.25);
+            box-shadow: var(--shadow-md);
+            transition: box-shadow 0.3s ease-out;
+            font-family: 'Inter', sans-serif;
         }
 
         .bus-marker.moving {
-            animation: markerGlow 2s infinite;
+            border-color: rgba(255,255,255,0.5);
         }
 
-        @keyframes markerGlow {
-            0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
-            50% { box-shadow: 0 2px 12px rgba(56,189,248,0.5); }
-        }
-
-        /* Bearing indicator */
-        .bearing-arrow {
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 4px solid transparent;
-            border-right: 4px solid transparent;
-            border-bottom: 8px solid var(--primary);
-        }
-
-        /* Popup styling */
+        /* ============ POPUPS ============ */
         .leaflet-popup-content-wrapper {
-            background: var(--bg-dark) !important;
+            background: rgba(19,26,43,0.95) !important;
+            backdrop-filter: blur(16px) saturate(1.5);
+            -webkit-backdrop-filter: blur(16px) saturate(1.5);
+            border-radius: var(--radius-lg) !important;
+            border: 1px solid var(--border-light) !important;
+            box-shadow: var(--shadow-lg), 0 0 0 1px rgba(0,0,0,0.3) !important;
             color: var(--text) !important;
-            border-radius: 12px !important;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.4) !important;
-            border: 1px solid rgba(255,255,255,0.1) !important;
+            padding: 0 !important;
         }
 
-        .leaflet-popup-tip { background: var(--bg-dark) !important; }
+        .leaflet-popup-content {
+            margin: 0 !important;
+            font-family: 'Inter', -apple-system, sans-serif !important;
+            font-size: 13px !important;
+            line-height: 1.5 !important;
+        }
+
+        .leaflet-popup-tip {
+            background: rgba(19,26,43,0.95) !important;
+            border: 1px solid var(--border-light) !important;
+            box-shadow: none !important;
+        }
+
+        .popup-content {
+            padding: 16px;
+        }
 
         .popup-content h3 {
-            font-size: 0.95rem;
-            margin-bottom: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
         }
 
-        .popup-content .popup-grid {
+        .popup-grid {
             display: grid;
             grid-template-columns: auto 1fr;
-            gap: 4px 12px;
+            gap: 6px 14px;
             font-size: 0.82rem;
         }
 
-        .popup-content .popup-grid .label { color: var(--text-dim); }
-        .popup-content .popup-grid .value { font-weight: 600; }
-
-        /* Map overlay info */
-        .map-overlay {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            z-index: 999;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .overlay-card {
-            background: rgba(15,23,42,0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 10px 14px;
-            color: var(--text);
-            font-size: 0.8rem;
-        }
-
-        /* Error banner */
-        .error-banner {
-            background: rgba(248,113,113,0.15);
-            border: 1px solid rgba(248,113,113,0.3);
-            color: var(--red);
-            padding: 10px 16px;
-            font-size: 0.82rem;
-            text-align: center;
-            display: none;
-        }
-
-        .error-banner.show { display: block; }
-
-        /* Loading spinner */
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
+        .popup-grid .label {
             color: var(--text-dim);
-            font-size: 0.9rem;
-            gap: 10px;
+            font-weight: 500;
         }
 
-        .spinner {
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255,255,255,0.1);
-            border-top-color: var(--primary);
+        .popup-grid .value {
+            font-weight: 600;
+            text-align: right;
+        }
+
+        /* ============ STOP MARKERS ============ */
+        .stop-marker {
             border-radius: 50%;
-            animation: spin 0.8s linear infinite;
+            border: 1px solid rgba(255,255,255,0.6);
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        /* ============ STOP POPUPS ============ */
+        .stop-popup { padding: 14px; }
 
-        /* Stop popup */
         .stop-popup-header {
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            gap: 8px;
+            align-items: flex-start;
+            gap: 10px;
             margin-bottom: 6px;
+        }
+        .stop-popup-header strong {
             font-size: 0.9rem;
         }
-
         .stop-popup-code {
-            font-size: 0.72rem;
-            color: var(--text-dim);
+            font-size: 0.65rem;
             background: var(--bg-hover);
-            padding: 2px 6px;
-            border-radius: 4px;
-            flex-shrink: 0;
+            padding: 2px 7px;
+            border-radius: 100px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            white-space: nowrap;
         }
 
         .stop-arrivals-label {
-            font-size: 0.72rem;
+            font-size: 0.7rem;
             color: var(--text-dim);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 6px;
-        }
-
-        .stop-arrivals-list {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
         }
 
         .stop-arrival-row {
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 0.82rem;
+            padding: 5px 0;
+            font-size: 0.8rem;
+        }
+        .stop-arrival-row + .stop-arrival-row {
+            border-top: 1px solid rgba(255,255,255,0.04);
         }
 
         .stop-route-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px;
+            padding: 2px 8px;
+            border-radius: 6px;
             font-size: 0.7rem;
             font-weight: 700;
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            white-space: nowrap;
-            flex-shrink: 0;
+            color: #fff;
         }
 
         .stop-vehicle {
             flex: 1;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            color: var(--text-dim);
-            font-size: 0.78rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
         }
 
         .stop-eta {
             font-weight: 700;
             color: var(--green);
+            font-size: 0.8rem;
             white-space: nowrap;
-            flex-shrink: 0;
         }
-
         .stop-eta.at-stop {
             color: var(--primary);
         }
@@ -460,183 +581,292 @@
         .stop-no-arrivals {
             color: var(--text-dim);
             font-size: 0.8rem;
-            font-style: italic;
-            padding: 4px 0;
+            padding: 8px 0;
+            text-align: center;
         }
 
-        /* Stop markers */
-        .stop-marker {
-            width: 8px;
-            height: 8px;
-            background: rgba(148,163,184,0.6);
-            border: 1.5px solid rgba(255,255,255,0.8);
+        /* ============ MOBILE TOGGLE ============ */
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            z-index: 1100;
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(10px);
+            color: var(--text);
+            font-size: 0;
+            cursor: pointer;
+            transition: all var(--transition);
+            align-items: center;
+            justify-content: center;
+        }
+        .mobile-toggle:hover { background: var(--bg-hover); }
+        .mobile-toggle:active { transform: scale(0.95); }
+
+        .hamburger-icon {
+            width: 20px;
+            height: 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .hamburger-icon span {
+            display: block;
+            width: 100%;
+            height: 2px;
+            background: var(--text);
+            border-radius: 2px;
+            transition: all var(--transition);
+        }
+
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 300ms ease-out;
+        }
+        .sidebar-backdrop.show { opacity: 1; }
+
+        /* ============ LEAFLET OVERRIDES ============ */
+        .leaflet-control-zoom a {
+            background: var(--bg-card) !important;
+            color: var(--text) !important;
+            border-color: var(--border) !important;
+            width: 36px !important;
+            height: 36px !important;
+            line-height: 36px !important;
+            font-size: 16px !important;
+            border-radius: var(--radius-sm) !important;
+            transition: all var(--transition);
+        }
+        .leaflet-control-zoom a:hover {
+            background: var(--bg-hover) !important;
+        }
+        .leaflet-control-zoom {
+            border: none !important;
+            border-radius: var(--radius-md) !important;
+            overflow: hidden;
+            box-shadow: var(--shadow-md) !important;
+        }
+
+        .leaflet-control-attribution {
+            background: rgba(10,15,26,0.8) !important;
+            color: var(--text-dim) !important;
+            font-size: 10px !important;
+            backdrop-filter: blur(8px);
+        }
+        .leaflet-control-attribution a { color: var(--text-secondary) !important; }
+
+        .leaflet-tooltip {
+            background: rgba(19,26,43,0.95) !important;
+            border: 1px solid var(--border-light) !important;
+            color: var(--text) !important;
+            border-radius: var(--radius-sm) !important;
+            box-shadow: var(--shadow-md) !important;
+            font-family: 'Inter', sans-serif !important;
+            font-size: 12px !important;
+            padding: 6px 10px !important;
+            backdrop-filter: blur(12px);
+        }
+        .leaflet-tooltip-top:before { border-top-color: rgba(19,26,43,0.95) !important; }
+
+        /* ============ LOCATE BUTTON ============ */
+        .locate-btn {
+            position: absolute;
+            bottom: 100px;
+            right: 12px;
+            z-index: 800;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-md);
+            transition: all var(--transition);
+        }
+        .locate-btn:hover, .mapstyle-btn:hover { background: var(--bg-hover); }
+        .locate-btn:active, .mapstyle-btn:active { transform: scale(0.95); }
+        .locate-btn.active { color: var(--primary); }
+        .locate-btn.loading svg { animation: spin 1s linear infinite; }
+
+        .mapstyle-btn {
+            position: absolute;
+            bottom: 145px;
+            right: 12px;
+            z-index: 800;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-md);
+            transition: all var(--transition);
+        }
+
+        .user-location-pulse {
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            background: rgba(56,189,248,0.25);
+            border: 3px solid var(--primary);
+            box-shadow: 0 0 12px rgba(56,189,248,0.4);
+            animation: locationPulse 2s ease-in-out infinite;
+        }
+        @keyframes locationPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(56,189,248,0); }
         }
 
-        /* Mobile */
-        .mobile-toggle { display: none; }
-        .sidebar-backdrop { display: none; }
-        .sidebar-close { display: none; }
+        /* ============ REDUCED MOTION ============ */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+            .refresh-progress-fill { transition: none; }
+        }
 
+        /* ============ MOBILE ============ */
         @media (max-width: 768px) {
-            body { flex-direction: column; }
-
             .sidebar {
                 position: fixed;
                 left: 0;
                 top: 0;
                 bottom: 0;
-                width: min(300px, 85vw);
+                width: min(340px, 85vw);
                 transform: translateX(-100%);
-                transition: transform 0.3s ease;
-                z-index: 2000;
-                padding-top: env(safe-area-inset-top, 0);
-                overflow: hidden;
+                transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: none;
+                z-index: 1001;
             }
-            .sidebar.open { transform: translateX(0); }
-
-            .sidebar-close {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-left: auto;
-                width: 32px;
-                height: 32px;
-                border: none;
-                background: var(--bg-hover);
-                color: var(--text);
-                border-radius: 8px;
-                font-size: 1.3rem;
-                cursor: pointer;
-                -webkit-tap-highlight-color: transparent;
-                flex-shrink: 0;
-            }
-            .sidebar-close:active { background: var(--bg-card); }
-
-            .sidebar-backdrop {
-                display: none;
-                position: fixed;
-                inset: 0;
-                background: rgba(0,0,0,0.5);
-                z-index: 1999;
-                -webkit-tap-highlight-color: transparent;
-            }
-            .sidebar-backdrop.show { display: block; }
-
-            .mobile-toggle {
-                display: flex !important;
-                position: fixed;
-                top: calc(12px + env(safe-area-inset-top, 0));
-                left: calc(12px + env(safe-area-inset-left, 0));
-                z-index: 1500;
-                width: 44px;
-                height: 44px;
-                background: var(--bg-dark);
-                border: 1px solid rgba(255,255,255,0.15);
-                border-radius: 12px;
-                align-items: center;
-                justify-content: center;
-                color: var(--text);
-                font-size: 1.3rem;
-                cursor: pointer;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-                -webkit-tap-highlight-color: transparent;
+            .sidebar.open {
+                transform: translateX(0);
+                box-shadow: var(--shadow-lg);
             }
 
-            .mobile-toggle:active { background: var(--bg-hover); }
+            .mobile-toggle { display: flex; }
+            .sidebar-backdrop { display: block; pointer-events: none; }
+            .sidebar-backdrop.show { pointer-events: auto; }
+            .sidebar-close { display: flex; align-items: center; justify-content: center; }
 
-            /* Larger touch targets for buttons */
-            .toggle-btn {
-                padding: 8px 14px;
-                font-size: 0.8rem;
-                min-height: 36px;
+            .toggle-btn { padding: 8px 6px; font-size: 0.72rem; }
+            .bus-item { padding: 10px; }
+            .bus-icon { width: 36px; height: 36px; }
+
+            .leaflet-control-zoom {
+                margin-right: 12px !important;
+                margin-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
             }
 
-            .region-btn {
-                padding: 6px 10px;
-                font-size: 0.75rem;
-                min-height: 32px;
-            }
-
-            /* Prevent iOS zoom on input focus */
-            .search-box { font-size: 16px; }
-
-            .bus-item {
-                padding: 12px 14px;
-                gap: 12px;
-                min-height: 52px;
-            }
-
-            /* Reposition map overlay to avoid hamburger */
-            .map-overlay {
-                top: calc(64px + env(safe-area-inset-top, 0));
-                right: calc(8px + env(safe-area-inset-right, 0));
-            }
-
-            .overlay-card { font-size: 0.75rem; padding: 8px 10px; }
-
-            /* Smaller popups on mobile */
-            .leaflet-popup-content-wrapper { max-width: 240px !important; }
-            .popup-content .popup-grid { font-size: 0.78rem; gap: 3px 8px; }
-            .popup-content h3 { font-size: 0.88rem; }
-
-            .refresh-progress {
-                flex-shrink: 0;
-            }
-
-            .refresh-bar {
-                padding: 10px 16px;
-                padding-bottom: calc(10px + env(safe-area-inset-bottom, 0));
-                flex-shrink: 0;
-            }
-
-            /* Leaflet zoom controls safe area */
-            .leaflet-bottom.leaflet-right {
-                right: calc(4px + env(safe-area-inset-right, 0));
-                bottom: calc(4px + env(safe-area-inset-bottom, 0));
+            .leaflet-control-attribution {
+                padding-bottom: env(safe-area-inset-bottom, 0px) !important;
             }
         }
 
         /* Landscape phones */
         @media (max-width: 768px) and (max-height: 500px) {
             .sidebar { width: min(260px, 60vw); }
-            .sidebar-header { padding: 10px 16px 8px; }
-            .sidebar-header h1 { font-size: 1rem; }
-            .controls { padding: 8px 16px; gap: 6px; }
-            .bus-item { padding: 8px 12px; min-height: 44px; }
+            .sidebar-header { padding: 12px 16px 10px; }
+            .brand-text h1 { font-size: 0.95rem; }
+            .controls { padding: 8px 14px; gap: 6px; }
+            .bus-item { padding: 8px 10px; min-height: 44px; }
             .bus-icon { width: 30px; height: 30px; font-size: 0.9rem; }
-            .refresh-bar { padding: 6px 16px; }
+            .refresh-bar { padding: 6px 14px; }
+            .stat-card { padding: 6px 8px; }
+            .stat-card .stat-value { font-size: 1rem; }
         }
     </style>
 </head>
 <body>
 
-    <button class="mobile-toggle" onclick="toggleSidebar()">&#9776;</button>
+    <button class="mobile-toggle" onclick="toggleSidebar()" aria-label="Open menu">
+        <div class="hamburger-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </button>
     <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
     <aside class="sidebar">
         <div class="sidebar-header">
-            <h1>
-                <span class="live-dot"></span>
-                Cyprus Bus Tracker
-                <button class="sidebar-close" onclick="closeSidebar()">&times;</button>
-            </h1>
-            <div class="status-bar">
-                <div class="stat"><span>&#x1F68C;</span> <strong id="busCount">0</strong> buses</div>
-                <div class="stat"><span>&#x1F4CD;</span> <strong id="routeCount">0</strong> routes</div>
-                <div class="stat"><span>&#x23F1;</span> <strong id="lastUpdate">--</strong></div>
+            <div class="sidebar-title-row">
+                <div class="sidebar-brand">
+                    <div class="brand-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M8 6v6"/><path d="M16 6v6"/><path d="M2 12h19.6"/>
+                            <path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/>
+                            <circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>
+                        </svg>
+                    </div>
+                    <div class="brand-text">
+                        <h1>Cyprus Bus Tracker</h1>
+                        <div class="live-badge">
+                            <span class="live-dot"></span>
+                            Live Tracking
+                        </div>
+                    </div>
+                </div>
+                <button class="sidebar-close" onclick="closeSidebar()" aria-label="Close menu">&times;</button>
+            </div>
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-value" id="busCount">0</div>
+                    <div class="stat-label">Buses</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="routeCount">0</div>
+                    <div class="stat-label">Routes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="lastUpdate">--</div>
+                    <div class="stat-label">Updated</div>
+                </div>
             </div>
         </div>
 
         <div class="error-banner" id="errorBanner"></div>
 
         <div class="controls">
-            <input type="text" class="search-box" id="searchBox" placeholder="&#x1F50D; Search vehicle or route...">
+            <div class="search-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+                </svg>
+                <input type="text" class="search-box" id="searchBox" placeholder="Search vehicle or route...">
+            </div>
             <div class="toggle-row">
-                <button class="toggle-btn active" id="toggleStops" onclick="toggleStops()">&#x1F6CF; Stops</button>
-                <button class="toggle-btn active" id="toggleMoving" onclick="toggleMovingFilter()">&#x1F699; Moving</button>
-                <button class="toggle-btn active" id="toggleStopped" onclick="toggleStoppedFilter()">&#x1F17F; Stopped</button>
+                <button class="toggle-btn active" id="toggleStops" onclick="toggleStops()">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Stops
+                </button>
+                <button class="toggle-btn active" id="toggleMoving" onclick="toggleMovingFilter()">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"/><polygon points="12 15 17 21 7 21 12 15"/></svg>
+                    Moving
+                </button>
+                <button class="toggle-btn active" id="toggleStopped" onclick="toggleStoppedFilter()">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+                    Stopped
+                </button>
             </div>
             <div class="region-filters" id="regionFilters"></div>
         </div>
@@ -645,17 +875,27 @@
             <div class="loading"><div class="spinner"></div> Loading buses...</div>
         </div>
 
-        <div class="refresh-progress"><div class="refresh-progress-fill" id="refreshProgress"></div></div>
-        <div class="refresh-bar">
-            <span>Auto-refresh</span>
-            <span>Next in <span class="countdown" id="countdown">15</span>s</span>
+        <div class="refresh-section">
+            <div class="refresh-progress"><div class="refresh-progress-fill" id="refreshProgress"></div></div>
+            <div class="refresh-bar">
+                <span>Auto-refresh</span>
+                <span>Next in <span class="countdown" id="countdown">15</span>s</span>
+            </div>
         </div>
     </aside>
 
     <div class="map-container">
         <div id="map"></div>
-        <div class="map-overlay">
-        </div>
+        <button class="mapstyle-btn" id="mapStyleBtn" onclick="toggleMapStyle()" aria-label="Toggle map style">
+            <svg id="mapStyleIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+            </svg>
+        </button>
+        <button class="locate-btn" id="locateBtn" onclick="locateUser()" aria-label="Go to my location">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="4"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M2 12h4"/><path d="M18 12h4"/>
+            </svg>
+        </button>
     </div>
 
     <script>
@@ -707,15 +947,24 @@
     }
 
     // ============ STATE ============
-    let map, busMarkers = {}, stopMarkers = [], stopsLayer = null;
+    let map, busMarkers = {}, stopMarkerMap = {}, stopsLayer = null;
     let allBuses = [];
     let allTripUpdates = [];
     let allStopsMap = {};
+    let allStopsArray = [];    // all loaded stops for re-filtering
     let gtfsStopsMap = {};     // GTFS stop_id -> {lat, lon, name} for route drawing
     let stopCodeToGtfsId = {}; // CSV stop_code -> GTFS stop_id (reverse lookup)
     let routeStopsIndex = {};  // route_id -> Set<stop_id> built from all trip_updates
-    let showStops = true, showMoving = true, showStopped = true;
-    let activeRegions = new Set(Object.keys(REGIONS).concat(['Other']));
+    let stopRegionsIndex = {}; // gtfs_stop_id -> Set<regionName> built from routeStopsIndex
+
+    // Load saved filters from localStorage (or use defaults)
+    const savedFilters = (() => {
+        try { return JSON.parse(localStorage.getItem('busTrackerFilters')); } catch { return null; }
+    })();
+    let showStops = savedFilters?.showStops ?? true;
+    let showMoving = savedFilters?.showMoving ?? true;
+    let showStopped = savedFilters?.showStopped ?? true;
+    let activeRegions = new Set(savedFilters?.activeRegions ?? Object.keys(REGIONS).concat(['Other']));
     let selectedBusId = null;
     let routeLayer = null;       // L.layerGroup for the active bus route polyline
     let activeRouteBusId = null; // which bus's route is currently drawn
@@ -730,11 +979,33 @@
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    // Map tile layers
+    const savedMapStyle = localStorage.getItem('busTrackerMapStyle') || 'satellite';
+    let currentMapStyle = savedMapStyle;
+
+    const tileLayers = {
+        satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+            maxZoom: 19,
+        }),
+        dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19,
+        }),
+    };
+
+    const labelsOverlay = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+        attribution: '',
         subdomains: 'abcd',
         maxZoom: 19,
-    }).addTo(map);
+        pane: 'overlayPane',
+    });
+
+    // Apply initial map style
+    tileLayers[currentMapStyle].addTo(map);
+    if (currentMapStyle === 'satellite') labelsOverlay.addTo(map);
+    updateMapStyleIcon();
 
     // Clear route line when clicking on the map background (not a bus)
     let _busClicked = false;
@@ -768,17 +1039,15 @@
         const region = getRegion(v.route_id);
         const time = v.timestamp ? new Date(v.timestamp * 1000).toLocaleTimeString('el-GR') : '--';
         const speed = v.speed > 0 ? `${v.speed} km/h` : 'Stopped';
-        const bearing = v.bearing > 0 ? `${v.bearing}°` : '--';
+        const bearing = v.bearing > 0 ? `${v.bearing}\u00B0` : '--';
 
         return `<div class="popup-content">
-            <h3><span style="color:${region.color}">&#x1F68C;</span> ${v.label}</h3>
+            <h3><span style="color:${region.color}"><svg width="18" height="18" viewBox="0 0 24 24" fill="${region.color}" stroke="none"><path d="M8 6v6M16 6v6M2 12h19.6M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3M7 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM17 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg></span> ${v.label}</h3>
             <div class="popup-grid">
                 <span class="label">Region</span><span class="value" style="color:${region.color}">${region.name}</span>
                 <span class="label">Route</span><span class="value">${v.route_id}</span>
                 <span class="label">Speed</span><span class="value">${speed}</span>
-                <span class="label">Bearing</span><span class="value">${bearing}</span>
                 <span class="label">Updated</span><span class="value">${time}</span>
-                <span class="label">Coords</span><span class="value">${v.lat.toFixed(4)}, ${v.lon.toFixed(4)}</span>
             </div>
         </div>`;
     }
@@ -876,7 +1145,13 @@
             const selected = v.id === selectedBusId ? 'selected' : '';
 
             return `<div class="bus-item ${selected}" onclick="focusBus('${v.id}')" data-id="${v.id}">
-                <div class="bus-icon" style="background:${region.color}20; color:${region.color};">&#x1F68C;</div>
+                <div class="bus-icon" style="background:${region.color}15; color:${region.color}; border-radius: 10px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 6v6"/><path d="M16 6v6"/><path d="M2 12h19.6"/>
+                        <path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/>
+                        <circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>
+                    </svg>
+                </div>
                 <div class="bus-info">
                     <div class="bus-label">${v.label || v.id}</div>
                     <div class="bus-route">${region.name} &bull; Route ${v.route_id}</div>
@@ -1116,8 +1391,7 @@
     }
 
     // Build a global index: route_id -> Set of all stop_ids that route serves
-    // This aggregates stops from ALL trip_updates for a given route, giving us
-    // a much more complete picture than checking individual trip_updates.
+    // Also builds stopRegionsIndex: stop_id -> Set<regionName>
     function buildRouteStopsIndex() {
         routeStopsIndex = {};
         for (const tu of allTripUpdates) {
@@ -1129,6 +1403,19 @@
                 routeStopsIndex[tu.route_id].add(s.stop_id);
             }
         }
+
+        // Build reverse index: stop_id -> which regions serve it
+        stopRegionsIndex = {};
+        for (const [routeId, stopIds] of Object.entries(routeStopsIndex)) {
+            const region = getRegion(routeId);
+            for (const sid of stopIds) {
+                if (!stopRegionsIndex[sid]) stopRegionsIndex[sid] = new Set();
+                stopRegionsIndex[sid].add(region.name);
+            }
+        }
+
+        // Re-filter visible stops whenever the index is rebuilt
+        filterStopsByRegion();
     }
 
     function getNearbyBuses(stop) {
@@ -1164,8 +1451,6 @@
             if (bus.speed <= 1 && !isAtStop) continue;
 
             // Route filter: skip buses whose route doesn't serve this stop
-            // (unless physically at the stop). Uses the global route-to-stops index
-            // which aggregates ALL trip_updates for each route.
             if (!isAtStop && bus.route_id && !routeServesStop(bus.route_id)) {
                 continue;
             }
@@ -1182,12 +1467,10 @@
             const tu = tripMap[bus.trip_id];
 
             if (tu && tu.stops.length > 0) {
-                // We have trip data — use stop sequence (GTFS stop_ids)
                 const targetIdx = tu.stops.findIndex(s => s.stop_id === gtfsId);
-                if (targetIdx < 0 && !isAtStop) continue; // Trip doesn't serve this stop
+                if (targetIdx < 0 && !isAtStop) continue;
 
                 if (targetIdx >= 0) {
-                    // Find which stop the bus is nearest to in the sequence
                     let busStopIdx = 0;
                     let minDist = Infinity;
                     for (let i = 0; i < tu.stops.length; i++) {
@@ -1197,12 +1480,10 @@
                         if (d < minDist) { minDist = d; busStopIdx = i; }
                     }
 
-                    // Bus already passed the target stop (but allow if at stop)
                     if (busStopIdx > targetIdx && !isAtStop) continue;
 
                     stopsAway = Math.max(0, targetIdx - busStopIdx);
 
-                    // Sum distances along the stop sequence for a better ETA
                     if (stopsAway > 0) {
                         const firstStop = getStopCoords(tu.stops[busStopIdx]?.stop_id);
                         let seqDist = firstStop
@@ -1220,14 +1501,13 @@
             // ETA calculation
             let eta_min;
             if (isAtStop) {
-                eta_min = 0; // bus is here
+                eta_min = 0;
             } else if (bus.speed <= 1) {
-                continue; // stopped but not at this stop (already filtered above, safety net)
+                continue;
             } else {
                 const travelDist = routeDist !== null ? routeDist : dist * 1.3;
                 eta_min = Math.round((travelDist / bus.speed) * 60);
 
-                // Add dwell time for intermediate stops
                 if (stopsAway !== null && stopsAway > 1) {
                     eta_min += Math.round((stopsAway - 1) * DWELL_PER_STOP_MIN);
                 }
@@ -1315,15 +1595,17 @@
             const stops = await resp.json();
 
             stops.forEach(s => { allStopsMap[s.code] = s; });
+            allStopsArray = stops;
 
             stopsLayer = L.layerGroup();
             stops.forEach(s => {
+                const isDark = currentMapStyle === 'dark';
                 const marker = L.circleMarker([s.lat, s.lon], {
-                    radius: 3,
-                    fillColor: '#94a3b8',
-                    fillOpacity: 0.5,
-                    color: 'rgba(255,255,255,0.6)',
-                    weight: 1,
+                    radius: isDark ? 3 : 4,
+                    fillColor: isDark ? '#94a3b8' : '#facc15',
+                    fillOpacity: isDark ? 0.6 : 0.9,
+                    color: isDark ? 'rgba(255,255,255,0.6)' : '#000',
+                    weight: isDark ? 1 : 1.5,
                 });
                 marker.bindTooltip(`<strong>${s.name_el || s.name_en}</strong><br><small>${s.code}</small>`, {
                     direction: 'top',
@@ -1333,17 +1615,61 @@
                 marker.on('click', () => {
                     marker.setPopupContent(createStopPopup(s));
                 });
+                stopMarkerMap[s.code] = marker;
                 stopsLayer.addLayer(marker);
             });
 
-            stopsLayer.addTo(map);
+            if (showStops) stopsLayer.addTo(map);
+            filterStopsByRegion();
             console.log(`Loaded ${stops.length} stops`);
         } catch (e) {
             console.warn('Could not load stops:', e);
         }
     }
 
+    // Show/hide individual stop markers based on active region filters
+    function filterStopsByRegion() {
+        if (!stopsLayer) return;
+        const allActive = activeRegions.size >= Object.keys(REGIONS).length + 1; // all regions + Other
+        const hasIndex = Object.keys(stopRegionsIndex).length > 0;
+
+        for (const [csvCode, marker] of Object.entries(stopMarkerMap)) {
+            // Look up GTFS stop ID at filter time (after GTFS data is loaded)
+            const gtfsId = toGtfsStopId(csvCode);
+            const regions = stopRegionsIndex[gtfsId] || stopRegionsIndex[csvCode];
+
+            let visible;
+            if (!hasIndex || allActive) {
+                // No trip data yet or all regions active — show all stops
+                visible = true;
+            } else if (!regions || regions.size === 0) {
+                // Stop not served by any known route — show if 'Other' is active
+                visible = activeRegions.has('Other');
+            } else {
+                // Show if any of the stop's regions is active
+                visible = [...regions].some(r => activeRegions.has(r));
+            }
+
+            if (visible) {
+                if (!stopsLayer.hasLayer(marker)) stopsLayer.addLayer(marker);
+            } else {
+                if (stopsLayer.hasLayer(marker)) stopsLayer.removeLayer(marker);
+            }
+        }
+    }
+
     // ============ FILTERS ============
+    function saveFilters() {
+        try {
+            localStorage.setItem('busTrackerFilters', JSON.stringify({
+                showStops,
+                showMoving,
+                showStopped,
+                activeRegions: [...activeRegions],
+            }));
+        } catch { /* storage full or unavailable */ }
+    }
+
     function toggleStops() {
         showStops = !showStops;
         document.getElementById('toggleStops').classList.toggle('active', showStops);
@@ -1351,6 +1677,7 @@
             if (showStops) stopsLayer.addTo(map);
             else map.removeLayer(stopsLayer);
         }
+        saveFilters();
     }
 
     function toggleMovingFilter() {
@@ -1367,6 +1694,8 @@
 
     function refreshFilters() {
         updateBuses(allBuses);
+        filterStopsByRegion();
+        saveFilters();
     }
 
     // Region filter buttons
@@ -1452,6 +1781,122 @@
         document.getElementById('refreshProgress').style.width = pct + '%';
     }
 
+    // ============ MAP STYLE TOGGLE ============
+    function toggleMapStyle() {
+        // Remove current base layer
+        map.removeLayer(tileLayers[currentMapStyle]);
+
+        if (currentMapStyle === 'satellite') {
+            map.removeLayer(labelsOverlay);
+            currentMapStyle = 'dark';
+        } else {
+            currentMapStyle = 'satellite';
+        }
+
+        // Add new base layer (at bottom)
+        tileLayers[currentMapStyle].addTo(map);
+        tileLayers[currentMapStyle].bringToBack();
+        if (currentMapStyle === 'satellite') labelsOverlay.addTo(map);
+
+        // Update stop marker style for visibility
+        const isDark = currentMapStyle === 'dark';
+        for (const marker of Object.values(stopMarkerMap)) {
+            marker.setStyle({
+                fillColor: isDark ? '#94a3b8' : '#facc15',
+                fillOpacity: isDark ? 0.6 : 0.9,
+                color: isDark ? 'rgba(255,255,255,0.6)' : '#000',
+                weight: isDark ? 1 : 1.5,
+            });
+        }
+
+        updateMapStyleIcon();
+        try { localStorage.setItem('busTrackerMapStyle', currentMapStyle); } catch {}
+    }
+
+    function updateMapStyleIcon() {
+        const icon = document.getElementById('mapStyleIcon');
+        if (currentMapStyle === 'satellite') {
+            // Sun icon (satellite/light) — clicking will switch to dark
+            icon.innerHTML = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>';
+        } else {
+            // Moon icon (dark mode) — clicking will switch to satellite
+            icon.innerHTML = '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>';
+        }
+    }
+
+    // ============ GEOLOCATION ============
+    let userLocationMarker = null;
+
+    function locateUser() {
+        if (!navigator.geolocation) return;
+
+        const btn = document.getElementById('locateBtn');
+        btn.classList.add('loading');
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                btn.classList.remove('loading');
+                btn.classList.add('active');
+
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+
+                map.flyTo([lat, lon], 15, { duration: 1 });
+
+                if (userLocationMarker) {
+                    userLocationMarker.setLatLng([lat, lon]);
+                } else {
+                    userLocationMarker = L.marker([lat, lon], {
+                        icon: L.divIcon({
+                            className: '',
+                            html: '<div class="user-location-pulse"></div>',
+                            iconSize: [18, 18],
+                            iconAnchor: [9, 9],
+                        }),
+                        zIndexOffset: 1000,
+                    }).addTo(map);
+                    userLocationMarker.bindTooltip('You are here', {
+                        direction: 'top',
+                        offset: [0, -12],
+                    });
+                }
+            },
+            (err) => {
+                btn.classList.remove('loading');
+                console.warn('Geolocation error:', err.message);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
+    // Request location on first load
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                map.flyTo([lat, lon], 14, { duration: 1.2 });
+
+                document.getElementById('locateBtn').classList.add('active');
+                userLocationMarker = L.marker([lat, lon], {
+                    icon: L.divIcon({
+                        className: '',
+                        html: '<div class="user-location-pulse"></div>',
+                        iconSize: [18, 18],
+                        iconAnchor: [9, 9],
+                    }),
+                    zIndexOffset: 1000,
+                }).addTo(map);
+                userLocationMarker.bindTooltip('You are here', {
+                    direction: 'top',
+                    offset: [0, -12],
+                });
+            },
+            () => { /* user denied or unavailable — stay on Cyprus center */ },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
     // ============ INIT ============
     async function loadGtfsStops() {
         try {
@@ -1465,6 +1910,12 @@
     }
 
     buildRegionFilters();
+
+    // Apply saved filter state to UI buttons
+    document.getElementById('toggleStops').classList.toggle('active', showStops);
+    document.getElementById('toggleMoving').classList.toggle('active', showMoving);
+    document.getElementById('toggleStopped').classList.toggle('active', showStopped);
+
     fetchData();
     loadStops();
     loadGtfsStops();
